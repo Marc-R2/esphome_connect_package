@@ -27,10 +27,10 @@ class EspHomeController {
 
   StreamSubscription<String>? _rawStreamSubscription;
 
-  final _valueStateStream = StreamController<State>.broadcast();
+  final _valueStateStream = StreamController<EspHomeElement>.broadcast();
 
   /// Stream of value changes of states
-  Stream<State> get valueState => _valueStateStream.stream;
+  Stream<EspHomeElement> get valueState => _valueStateStream.stream;
 
   final _stateStream = StreamController<EspHomeControllerState>.broadcast();
 
@@ -76,9 +76,9 @@ class EspHomeController {
 
   String _expectedNextEvent = '';
 
-  Map<String, State> _states = {};
+  Map<String, EspHomeElement> _elements = {};
 
-  List<State> get states => _states.values.toList();
+  List<EspHomeElement> get elements => _elements.values.toList();
 
   void _eventHandler(String event) {
     if (event.startsWith('event: ')) {
@@ -87,12 +87,7 @@ class EspHomeController {
       final data = event.substring(6);
       switch (_expectedNextEvent) {
         case 'state':
-          final state = State.createFromMap(jsonDecode(data) as Map<String, dynamic>);
-          if (state != null) {
-            _valueStateStream.add(state);
-            _states[state.id] = state;
-          }
-          print('State: $state');
+          updateElementFromMap(jsonDecode(data) as Map<String, dynamic>);
           break;
         case 'ping':
           print('Ping: $data');
@@ -114,5 +109,46 @@ class EspHomeController {
     _setState(EspHomeControllerState.disconnected);
     _rawStreamSubscription?.cancel();
     _rawStreamSubscription = null;
+  }
+
+  /// Create a [State] from a JSON map.
+  ///
+  /// The type of the state is determined by the `id` property automatically.
+  ///
+  /// If the type is unknown or not supported, `null` is returned.
+  EspHomeElement? updateElementFromMap(Map<String, dynamic> json) {
+    final id = json['id'] as String;
+
+    final element =
+        _elements[id]?.copyWith(json) ?? createElementFromMap(json, id);
+
+    if (element == null) return null;
+
+    _valueStateStream.add(element);
+    _elements[id] = element;
+
+    print('State: $element');
+    return element;
+  }
+
+  static EspHomeElement? createElementFromMap(
+    Map<String, dynamic> json,
+    String id,
+  ) {
+    final type = id.split('-')[0];
+
+    switch (type) {
+      case NumberState.type:
+        return NumberState.fromJson(json);
+      case BinarySensorState.type:
+        return BinarySensorState.fromJson(json);
+      case SwitchState.type:
+        return SwitchState.fromJson(json);
+      case ButtonState.type:
+        return ButtonState.fromJson(json);
+      default:
+        print('Unknown state type: $type => $json');
+        return null;
+    }
   }
 }

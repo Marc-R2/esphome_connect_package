@@ -25,6 +25,8 @@ class NumberState extends State {
     );
   }
 
+  static const type = 'number';
+
   final num value;
 
   final num min_value;
@@ -34,4 +36,27 @@ class NumberState extends State {
   final num step;
 
   final int mode;
+
+  @override
+  Map<String, String> asMap() => {
+        'value': '$value',
+        'min_value': '$min_value',
+        'max_value': '$max_value',
+        'step': '$step',
+        'mode': '$mode',
+      }..addAll(super.asMap());
+
+  @override
+  NumberState copyWith(Map<String, dynamic> json) {
+    return NumberState(
+      id: id,
+      name: json['name'] as String? ?? name,
+      state: json['state'] as String? ?? state,
+      value: json['value'] as num? ?? value,
+      min_value: json['min_value'] as num? ?? min_value,
+      max_value: json['max_value'] as num? ?? max_value,
+      step: json['step'] as num? ?? step,
+      mode: json['mode'] as int? ?? mode,
+    );
+  }
 }
