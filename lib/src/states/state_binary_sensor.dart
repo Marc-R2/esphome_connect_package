@@ -1,6 +1,6 @@
 part of '../../esphome_connect.dart';
 
-class BinarySensorState extends State {
+class BinarySensorState extends EspState {
   const BinarySensorState({
     required super.id,
     required super.name,

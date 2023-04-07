@@ -30,12 +30,47 @@ class EspHomeController {
   final _valueStateStream = StreamController<EspHomeElement>.broadcast();
 
   /// Stream of value changes of states
-  Stream<EspHomeElement> get valueState => _valueStateStream.stream;
+  Stream<EspHomeElement> get valueStream => _valueStateStream.stream;
 
   final _stateStream = StreamController<EspHomeControllerState>.broadcast();
 
   /// Stream of the controller state
   Stream<EspHomeControllerState> get controllerState => _stateStream.stream;
+
+  Timer? _keepAliveTimer;
+
+  /// Sets the keep alive timer.
+  ///
+  /// Returns true if the state changed.
+  bool setKeepAlive({required bool keepAlive}) {
+    if (keepAlive && _keepAliveTimer == null) {
+      _keepAliveTimer = Timer.periodic(
+        const Duration(seconds: 4),
+        (timer) => _keepAlive(),
+      );
+      return true;
+    } else if (_keepAliveTimer != null) {
+      _keepAliveTimer?.cancel();
+      _keepAliveTimer = null;
+      return true;
+    }
+    return false;
+  }
+
+  void unpause() {
+    if (setKeepAlive(keepAlive: true)) initStream();
+  }
+
+  void pause() {
+    setKeepAlive(keepAlive: false);
+    _rawStreamSubscription?.pause();
+    _setState(EspHomeControllerState.paused);
+  }
+
+  Future<void> _keepAlive() async {
+    if (isConnected) return;
+    await initStream();
+  }
 
   void _setState(EspHomeControllerState state) {
     _stateStream.add(state);
@@ -56,12 +91,15 @@ class EspHomeController {
     }
 
     final streamResponse = await streamClient
-        .send(streamRequest)
-        .timeout(const Duration(milliseconds: 512));
+        .send(streamRequest);
+        // .timeout(const Duration(milliseconds: 512));
 
     if (streamResponse.statusCode == 200) {
       _setState(EspHomeControllerState.connected);
     }
+
+    await _rawStreamSubscription?.cancel();
+    _rawStreamSubscription = null;
 
     return _rawStreamSubscription = streamResponse.stream
         .transform(utf8.decoder)
@@ -81,7 +119,12 @@ class EspHomeController {
   List<EspHomeElement> get elements => _elements.values.toList();
 
   void _eventHandler(String event) {
-    if (event.startsWith('event: ')) {
+    print('Raw event: $event');
+    
+    if (event.contains('Rebooting...')) {
+      _setState(EspHomeControllerState.disconnected);
+      initStream();
+    } else if (event.startsWith('event: ')) {
       _expectedNextEvent = event.substring(7);
     } else if (event.startsWith('data: ')) {
       final data = event.substring(6);
@@ -100,18 +143,22 @@ class EspHomeController {
   }
 
   void _errorHandle(error) {
-    _setState(EspHomeControllerState.error);
     print('Error occurred while receiving events: $error');
+    _setState(EspHomeControllerState.error);
+
+    _rawStreamSubscription?.cancel();
+    _rawStreamSubscription = null;
   }
 
   void _doneHandler() {
     print('Done receiving events');
     _setState(EspHomeControllerState.disconnected);
+    
     _rawStreamSubscription?.cancel();
     _rawStreamSubscription = null;
   }
 
-  /// Create a [State] from a JSON map.
+  /// Create a [EspState] from a JSON map.
   ///
   /// The type of the state is determined by the `id` property automatically.
   ///
@@ -131,6 +178,7 @@ class EspHomeController {
     return element;
   }
 
+  /// Create a [EspHomeElement] from a JSON map.
   static EspHomeElement? createElementFromMap(
     Map<String, dynamic> json,
     String id,

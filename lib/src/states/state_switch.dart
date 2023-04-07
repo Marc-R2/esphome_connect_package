@@ -1,6 +1,6 @@
 part of '../../esphome_connect.dart';
 
-class SwitchState extends State {
+class SwitchState extends EspState {
   const SwitchState({
     required super.id,
     required super.name,

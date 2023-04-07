@@ -1,6 +1,6 @@
 part of '../../esphome_connect.dart';
 
-class NumberState extends State {
+class NumberState extends EspState {
   const NumberState({
     required super.id,
     required super.name,

@@ -1,7 +1,7 @@
 part of '../../esphome_connect.dart';
 
-abstract class State extends EspHomeElement {
-  const State({
+abstract class EspState extends EspHomeElement {
+  const EspState({
     required super.id,
     required super.name,
     required this.state,
