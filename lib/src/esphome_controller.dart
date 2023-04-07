@@ -23,7 +23,9 @@ class EspHomeController {
 
   final String? password;
 
-  bool get isConnected => _rawStreamSubscription != null;
+  bool get isConnected =>
+      _rawStreamSubscription != null &&
+      (_lastEvent?.difference(DateTime.now()).inSeconds ?? 12) < 12;
 
   StreamSubscription<String>? _rawStreamSubscription;
 
@@ -34,10 +36,14 @@ class EspHomeController {
 
   final _stateStream = StreamController<EspHomeControllerState>.broadcast();
 
+  EspHomeControllerState staticState = EspHomeControllerState.unknown;
+
   /// Stream of the controller state
   Stream<EspHomeControllerState> get controllerState => _stateStream.stream;
 
   Timer? _keepAliveTimer;
+
+  DateTime? _lastEvent;
 
   /// Sets the keep alive timer.
   ///
@@ -45,7 +51,7 @@ class EspHomeController {
   bool setKeepAlive({required bool keepAlive}) {
     if (keepAlive && _keepAliveTimer == null) {
       _keepAliveTimer = Timer.periodic(
-        const Duration(seconds: 4),
+        const Duration(seconds: 1),
         (timer) => _keepAlive(),
       );
       return true;
@@ -74,6 +80,8 @@ class EspHomeController {
 
   void _setState(EspHomeControllerState state) {
     _stateStream.add(state);
+    staticState = state;
+    print('Update State: $state');
   }
 
   Future<StreamSubscription<String>> initStream() async {
@@ -90,9 +98,8 @@ class EspHomeController {
           'Basic ${base64Encode(utf8.encode('$username:$password'))}';
     }
 
-    final streamResponse = await streamClient
-        .send(streamRequest);
-        // .timeout(const Duration(milliseconds: 512));
+    final streamResponse = await streamClient.send(streamRequest);
+    // .timeout(const Duration(milliseconds: 512));
 
     if (streamResponse.statusCode == 200) {
       _setState(EspHomeControllerState.connected);
@@ -120,7 +127,9 @@ class EspHomeController {
 
   void _eventHandler(String event) {
     print('Raw event: $event');
-    
+
+    _lastEvent = DateTime.now();
+
     if (event.contains('Rebooting...')) {
       _setState(EspHomeControllerState.disconnected);
       initStream();
@@ -153,7 +162,7 @@ class EspHomeController {
   void _doneHandler() {
     print('Done receiving events');
     _setState(EspHomeControllerState.disconnected);
-    
+
     _rawStreamSubscription?.cancel();
     _rawStreamSubscription = null;
   }
