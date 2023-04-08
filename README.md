@@ -36,8 +36,6 @@ The `EspHomeController` class handles the connection to an ESPHome device and li
 
 The `initStream` method initializes the event stream and returns a `StreamSubscription` object that can be used to listen to events. When an event is received, the `_eventHandler` method is called with the event as a string. If an error occurs while receiving events, the `_errorHandler` method is called with the error as a parameter. When the event stream is closed, the `_doneHandler` method is called.
 
-<!--
 ## License
 
-This package is released under the MIT License. See the [LICENSE](https://github.com/username/package-name/blob/main/LICENSE) file for more details.
--->
+This project is licensed under the 3-Clause BSD License. See the [LICENSE](LICENSE.md) file for details.
